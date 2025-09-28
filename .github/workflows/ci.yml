@@ -1,0 +1,196 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        python-version: [3.8, 3.9, "3.10", "3.11"]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements-dev.txt
+
+    - name: Install package
+      run: |
+        pip install -e .
+
+    - name: Lint with flake8
+      run: |
+        # Stop the build if there are Python syntax errors or undefined names
+        flake8 mlx_speculative --count --select=E9,F63,F7,F82 --show-source --statistics
+        # Exit-zero treats all errors as warnings
+        flake8 mlx_speculative --count --exit-zero --max-complexity=10 --max-line-length=100 --statistics
+
+    - name: Format check with black
+      run: |
+        black --check mlx_speculative
+
+    - name: Import sort check with isort
+      run: |
+        isort --check-only mlx_speculative
+
+    - name: Type check with mypy
+      run: |
+        mypy mlx_speculative --ignore-missing-imports
+
+    - name: Run unit tests
+      run: |
+        python run_tests.py --unit --quick
+      env:
+        SKIP_SLOW_TESTS: true
+        SKIP_MODEL_TESTS: true
+
+    - name: Run integration tests
+      run: |
+        python run_tests.py --integration --quick
+      env:
+        SKIP_SLOW_TESTS: true
+        SKIP_MODEL_TESTS: true
+
+    - name: Generate coverage report
+      run: |
+        python run_tests.py --coverage --quick
+      env:
+        SKIP_SLOW_TESTS: true
+        SKIP_MODEL_TESTS: true
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false
+
+  build:
+    runs-on: macos-latest
+    needs: test
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
+
+    - name: Install build dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install build twine
+
+    - name: Build package
+      run: |
+        python -m build
+
+    - name: Check package
+      run: |
+        twine check dist/*
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: dist
+        path: dist/
+
+  performance:
+    runs-on: macos-latest
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements-dev.txt
+        pip install -e .
+
+    - name: Run performance tests
+      run: |
+        python run_tests.py --performance --quick
+      env:
+        SKIP_SLOW_TESTS: false
+        SKIP_MODEL_TESTS: true
+
+    - name: Upload performance results
+      uses: actions/upload-artifact@v3
+      with:
+        name: performance-results
+        path: performance-results.json
+      if: always()
+
+  security:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Run security scan with bandit
+      run: |
+        pip install bandit
+        bandit -r mlx_speculative -f json -o bandit-report.json
+      continue-on-error: true
+
+    - name: Upload security scan results
+      uses: actions/upload-artifact@v3
+      with:
+        name: security-scan
+        path: bandit-report.json
+      if: always()
+
+  docs:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
+
+    - name: Install documentation dependencies
+      run: |
+        pip install sphinx sphinx-rtd-theme
+
+    - name: Build documentation
+      run: |
+        # Add documentation build commands here when docs are added
+        echo "Documentation build placeholder"
+
+    - name: Deploy to GitHub Pages
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      run: |
+        # Add GitHub Pages deployment here when docs are ready
+        echo "Documentation deployment placeholder"

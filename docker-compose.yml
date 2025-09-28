@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  mlx-speculative-server:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      # Mount model directory (adjust path as needed)
+      - "${MODEL_PATH:-./models}:/app/models:ro"
+      # Mount config directory
+      - "${CONFIG_PATH:-./config}:/app/config:ro"
+      # Mount logs directory
+      - "${LOG_PATH:-./logs}:/app/logs"
+    environment:
+      # Server configuration
+      - HOST=0.0.0.0
+      - PORT=8000
+      - MAX_BATCH_SIZE=${MAX_BATCH_SIZE:-8}
+      - MAX_CONCURRENT_REQUESTS=${MAX_CONCURRENT_REQUESTS:-100}
+      
+      # Model configuration
+      - MODEL_PATH=/app/models
+      - AUTO_DRAFT=${AUTO_DRAFT:-true}
+      - DRAFT_LAYERS_RATIO=${DRAFT_LAYERS_RATIO:-0.5}
+      
+      # Performance configuration
+      - MEMORY_LIMIT_GB=${MEMORY_LIMIT_GB:-16}
+      - MAX_MODELS=${MAX_MODELS:-10}
+      - AUTO_UNLOAD=${AUTO_UNLOAD:-true}
+      - LOAD_BALANCING=${LOAD_BALANCING:-true}
+      
+      # Logging
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - LOG_FILE=/app/logs/server.log
+    
+    # Resource limits (adjust based on your system)
+    deploy:
+      resources:
+        limits:
+          memory: 16G
+        reservations:
+          memory: 8G
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    
+    # Restart policy
+    restart: unless-stopped
+
+  # Optional: Add a reverse proxy (nginx)
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - mlx-speculative-server
+    restart: unless-stopped
+    profiles:
+      - with-proxy
+
+volumes:
+  models:
+  config:
+  logs:
