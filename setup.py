@@ -23,6 +23,8 @@ install_requires = [
     "numpy>=1.21.0",
     "transformers>=4.30.0",
     "requests>=2.28.0",
+    "huggingface_hub>=0.16.0",
+    "tokenizers>=0.13.0",
 ]
 
 # Development requirements
@@ -85,6 +87,7 @@ setup(
         "console_scripts": [
             "mlx-speculative=mlx_speculative.cli:main",
             "mlx-spec-server=mlx_speculative.server_v2:run_enhanced_server",
+            "mlx-spec=mlx_speculative.cli_enhanced:main",
         ],
     },
     include_package_data=True,

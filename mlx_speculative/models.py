@@ -163,28 +163,70 @@ def load_model_pair(
     Returns:
         Tuple of (target_model, draft_model, tokenizer)
     """
-    # Load target model
-    target_model, tokenizer = load(
-        config.model_path,
-        adapter_path=config.adapter_path,
-        tokenizer_config={"trust_remote_code": config.trust_remote_code},
-    )
-    
-    # Load or create draft model
-    if config.draft_model_path:
-        # Load explicit draft model
-        draft_model, _ = load(
-            config.draft_model_path,
-            tokenizer_config={"trust_remote_code": config.trust_remote_code},
-        )
-    elif auto_draft:
-        # Create draft model by layer pruning
-        draft_model = create_draft_model(target_model, draft_layers_ratio)
-    else:
-        # Use target model as draft (no acceleration)
-        draft_model = target_model
-    
-    return target_model, draft_model, tokenizer
+    try:
+        from .hf_utils import is_hf_model_id, load_hf_model
+        
+        # Load target model
+        if is_hf_model_id(config.model_path):
+            # Load from Hugging Face
+            target_model, tokenizer = load_hf_model(
+                model_id=config.model_path,
+                quantize=config.quantize if config.quantize else None,
+                trust_remote_code=config.trust_remote_code,
+            )
+        else:
+            # Load from local path using mlx_lm
+            target_model, tokenizer = load(
+                config.model_path,
+                adapter_path=config.adapter_path,
+                tokenizer_config={"trust_remote_code": config.trust_remote_code},
+            )
+        
+        # Load or create draft model
+        if config.draft_model_path:
+            # Load explicit draft model
+            if is_hf_model_id(config.draft_model_path):
+                draft_model, _ = load_hf_model(
+                    model_id=config.draft_model_path,
+                    quantize=config.quantize if config.quantize else None,
+                    trust_remote_code=config.trust_remote_code,
+                )
+            else:
+                draft_model, _ = load(
+                    config.draft_model_path,
+                    tokenizer_config={"trust_remote_code": config.trust_remote_code},
+                )
+        elif auto_draft:
+            # Create draft model by layer pruning
+            draft_model = create_draft_model(target_model, draft_layers_ratio)
+        else:
+            # Use target model as draft (no acceleration)
+            draft_model = target_model
+        
+        return target_model, draft_model, tokenizer
+        
+    except ImportError as e:
+        # Fallback to local loading only if HF utils not available
+        if "hf_utils" in str(e):
+            target_model, tokenizer = load(
+                config.model_path,
+                adapter_path=config.adapter_path,
+                tokenizer_config={"trust_remote_code": config.trust_remote_code},
+            )
+            
+            if config.draft_model_path:
+                draft_model, _ = load(
+                    config.draft_model_path,
+                    tokenizer_config={"trust_remote_code": config.trust_remote_code},
+                )
+            elif auto_draft:
+                draft_model = create_draft_model(target_model, draft_layers_ratio)
+            else:
+                draft_model = target_model
+            
+            return target_model, draft_model, tokenizer
+        else:
+            raise
 
 
 def create_draft_model(target_model: nn.Module, layers_ratio: float = 0.5) -> nn.Module:

@@ -494,6 +494,14 @@ enhanced_app = FastAPI(
     lifespan=enhanced_lifespan,
 )
 
+# Include Hugging Face router
+try:
+    from .hf_endpoints import hf_router
+    enhanced_app.include_router(hf_router)
+except ImportError:
+    # HF integration not available
+    pass
+
 
 @enhanced_app.post("/generate", response_model=EnhancedGenerationResponse)
 async def enhanced_generate_text(request: GenerationRequest):

@@ -39,18 +39,39 @@ pip install mlx mlx-lm fastapi uvicorn numpy transformers
 
 ## 🚀 Quick Start
 
-### 1. Start the Server
+### 1. Download and Start with a Model
 
 ```bash
-# Start with a single model
-python -m mlx_speculative.cli serve \
-    --model llama3-8b \
-    --model-path /path/to/llama3-8b \
-    --host 0.0.0.0 \
-    --port 8000
+# Download a model from Hugging Face
+mlx-spec download microsoft/Phi-3-mini-4k-instruct
+
+# Start server with the downloaded model
+mlx-spec serve --model phi3-mini --model-path microsoft/Phi-3-mini-4k-instruct
+
+# Or start with a local model path
+mlx-spec serve --model llama3-8b --model-path /path/to/llama3-8b
 
 # Start with configuration file
-python -m mlx_speculative.cli serve --config config.json
+mlx-spec serve --config config.json
+```
+
+### 1.1. Model Management
+
+```bash
+# Search for models on Hugging Face
+mlx-spec search "phi-3"
+
+# List popular models
+mlx-spec popular
+
+# List locally downloaded models
+mlx-spec list
+
+# Get model information
+mlx-spec info microsoft/Phi-3-mini-4k-instruct
+
+# Download with quantization
+mlx-spec download microsoft/Phi-3-mini-4k-instruct --quantize q4
 ```
 
 ### 2. Generate Text
@@ -113,7 +134,7 @@ curl -X POST "http://localhost:8000/models/load" \
 # List models
 GET /models
 
-# Load model
+# Load model (local or HF)
 POST /models/load
 
 # Unload model
@@ -121,6 +142,31 @@ DELETE /models/{model_name}
 
 # Get model info
 GET /models/{model_name}
+```
+
+### Hugging Face Integration
+
+```bash
+# Search HF models
+POST /hf/models/search
+
+# Download HF model
+POST /hf/models/download
+
+# List local HF models
+GET /hf/models/local
+
+# Get HF model info
+GET /hf/models/{model_id}/info
+
+# Delete local HF model
+DELETE /hf/models/{model_id}
+
+# Get popular models
+GET /hf/models/popular
+
+# Cache statistics
+GET /hf/cache/stats
 ```
 
 ### Model Groups
