@@ -164,6 +164,62 @@ curl -X POST "http://localhost:8000/generate" \
   }'
 ```
 
+## 🧪 Testing Concurrent Requests
+
+### Quick Concurrent Test (Bash)
+```bash
+# Simple concurrent test with curl
+cd examples
+./quick_concurrent_test.sh
+
+# Custom concurrency level
+CONCURRENCY=20 ./quick_concurrent_test.sh
+```
+
+### Advanced Concurrent Testing (Python)
+```bash
+# Install dependencies
+pip install aiohttp psutil
+
+# Test different concurrency levels
+python examples/concurrent_test.py --concurrency 1 5 10 20 50
+
+# Single concurrency test
+python examples/concurrent_test.py --single-test 25
+
+# Custom parameters
+python examples/concurrent_test.py \
+  --concurrency 10 20 50 \
+  --max-tokens 150 \
+  --temperature 0.8
+```
+
+### Stress Testing
+```bash
+# Full stress test (60s duration, 50 concurrent)
+python examples/stress_test.py --concurrency 50 --duration 60
+
+# Quick stress test
+python examples/stress_test.py --concurrency 20 --duration 30
+
+# High-load test
+python examples/stress_test.py --concurrency 100 --duration 120
+```
+
+### Expected Concurrent Performance
+- **1 Request**: 2-4x speedup from speculative decoding
+- **10 Concurrent**: 3-5x total throughput improvement
+- **50 Concurrent**: 4-6x total throughput improvement  
+- **100+ Concurrent**: Maintains 2x+ speedup per request
+
+### Monitoring During Tests
+The tests provide real-time metrics:
+- **Throughput**: Tokens per second (individual and total)
+- **Acceptance Rate**: % of draft tokens accepted
+- **Speedup**: Actual speedup achieved
+- **Success Rate**: % of successful requests
+- **System Metrics**: CPU, memory usage
+
 ## 📊 Performance Benchmarks
 
 ### Speculative Decoding Results
